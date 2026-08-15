@@ -72,13 +72,14 @@ requires_xacro = pytest.mark.skipif(
 )
 
 
-def expand(model, use_fake_hardware):
+def expand(model, use_fake_hardware, *extra_args):
     """Run xacro on `model` and return the parsed <ros2_control> element."""
     result = subprocess.run(
         [
             "xacro",
             str(URDF_DIR / model),
             f"use_fake_hardware:={str(use_fake_hardware).lower()}",
+            *extra_args,
         ],
         capture_output=True,
         text=True,
@@ -91,6 +92,11 @@ def expand(model, use_fake_hardware):
 
 def plugin_of(ros2_control):
     return ros2_control.find("hardware/plugin").text.strip()
+
+
+def hardware_param(ros2_control, name):
+    param = ros2_control.find(f"hardware/param[@name='{name}']")
+    return None if param is None else param.text.strip()
 
 
 def command_interfaces_of(ros2_control, joint_name):
@@ -173,3 +179,16 @@ def test_only_real_hardware_declares_the_status_block_interfaces(model, joint):
     assert HARDWARE_ONLY_STATE_INTERFACES <= real
     assert HARDWARE_ONLY_STATE_INTERFACES.isdisjoint(mock)
     assert real - HARDWARE_ONLY_STATE_INTERFACES == mock == {"position", "velocity"}
+
+
+@requires_xacro
+@pytest.mark.parametrize("model", MODELS)
+def test_baudrate_reaches_the_driver(model):
+    # The launch argument crosses three xacro files to get here, and a half
+    # updated chain fails at runtime with `Invalid parameter "baudrate"` rather
+    # than at expansion.
+    ros2_control = expand(model, False, "baudrate:=57600")
+    assert hardware_param(ros2_control, "baudrate") == "57600"
+
+    assert hardware_param(expand(model, False), "baudrate") == "115200"
+    assert hardware_param(expand(model, True), "baudrate") is None

@@ -88,6 +88,13 @@ def generate_launch_description():
     )
     args.append(
         launch.actions.DeclareLaunchArgument(
+            name="baudrate",
+            default_value="115200",
+            description="Modbus RTU baudrate the gripper is configured for",
+        )
+    )
+    args.append(
+        launch.actions.DeclareLaunchArgument(
             name="use_fake_hardware",
             default_value="false",
             description="Use ros2_control mock (fake) hardware instead of a real gripper",
@@ -105,6 +112,9 @@ def generate_launch_description():
             " ",
             "com_port:=",
             LaunchConfiguration("com_port"),
+            " ",
+            "baudrate:=",
+            LaunchConfiguration("baudrate"),
         ]
     )
 

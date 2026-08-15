@@ -90,6 +90,32 @@ T parameterOr(const hardware_interface::HardwareInfo& info,
    }
 }
 
+//! Parse \p text in \p base, rejecting the trailing characters std::stoull
+//! silently ignores: "115200bps" would otherwise read as 115200 and "1.152e5"
+//! as 1.
+uint64_t asWholeNumber(const std::string& text, int base = 10)
+{
+   std::size_t consumed = 0;
+   const uint64_t value = std::stoull(text, &consumed, base);
+   if(consumed != text.size())
+   {
+      throw std::invalid_argument("expected a whole number");
+   }
+   return value;
+}
+
+//! The range libserialport accepts. Out of it the port still opens and every
+//! exchange then times out, which reads as a dead gripper rather than a typo.
+uint32_t asBaudrate(const std::string& text)
+{
+   const uint64_t value = asWholeNumber(text);
+   if(value == 0 || value > 1000000)
+   {
+      throw std::out_of_range("baudrate must be between 1 and 1000000");
+   }
+   return static_cast<uint32_t>(value);
+}
+
 double asDouble(const std::string& text)
 {
    return std::stod(text);
@@ -116,9 +142,7 @@ GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, 
          return text;
       });
    parameters.connection.serial.baudrate =
-      parameterOr<uint32_t>(info, logger, kBaudrateParam, kBaudrateDefault, [](const std::string& text) {
-         return static_cast<uint32_t>(std::stoul(text));
-      });
+      parameterOr<uint32_t>(info, logger, kBaudrateParam, kBaudrateDefault, asBaudrate);
    // The URDF spells the timeout in seconds; SerialConfig wants milliseconds.
    parameters.connection.serial.timeout =
       parameterOr<std::chrono::milliseconds>(info, logger, kTimeoutParam, kTimeoutDefault, [](const std::string& text) {
@@ -129,7 +153,7 @@ GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, 
    // quietly addressing a different device.
    parameters.connection.modbusSlaveAddress =
       parameterOr<uint8_t>(info, logger, kSlaveAddressParam, kSlaveAddressDefault, [](const std::string& text) {
-         const auto address = std::stoul(text, nullptr, 0);
+         const auto address = asWholeNumber(text, 0);
          if(address > 0xFF)
          {
             throw std::out_of_range("slave_address does not fit in a byte");
