@@ -133,4 +133,12 @@ TEST(GripperScaling, whenTheMaximumIsNearZero_theRegisterIsTheMaxAllowedValue)
 {
    EXPECT_EQ(255, registerFromFractionOf(0.15, std::numeric_limits<double>::denorm_min()));
 }
+
+TEST(GripperScaling, ReadingAFractionBackSpansTheWholeScale)
+{
+   constexpr double kMaxForce = 235.0;
+   EXPECT_DOUBLE_EQ(0.0, fractionOfFromRegister(0, kMaxForce));
+   EXPECT_DOUBLE_EQ(kMaxForce, fractionOfFromRegister(255, kMaxForce));
+   EXPECT_DOUBLE_EQ(kMaxForce * 127 / 255, fractionOfFromRegister(127, kMaxForce));
+}
 } // namespace robotiq_driver::test

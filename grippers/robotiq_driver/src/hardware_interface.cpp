@@ -89,6 +89,32 @@ const char* toString(Robotiq::ConnectionState state)
    return "Unknown";
 }
 
+// export_state_interfaces() exports position, velocity, effort and object status
+// whatever the description says, so this only checks that the description names
+// no fifth one the hardware cannot answer for. Declaring fewer is fine.
+bool declaresOnlySupportedStateInterfaces(const hardware_interface::ComponentInfo& joint)
+{
+   for(const hardware_interface::InterfaceInfo& state_interface : joint.state_interfaces)
+   {
+      if(!(state_interface.name == hardware_interface::HW_IF_POSITION
+           || state_interface.name == hardware_interface::HW_IF_VELOCITY
+           || state_interface.name == hardware_interface::HW_IF_EFFORT
+           || state_interface.name == kObjectStatusInterface))
+      {
+         RCLCPP_FATAL(kLogger,
+                      "Joint '%s' has %s state interface. Expected %s, %s, %s or %s.",
+                      joint.name.c_str(),
+                      state_interface.name.c_str(),
+                      hardware_interface::HW_IF_POSITION,
+                      hardware_interface::HW_IF_VELOCITY,
+                      hardware_interface::HW_IF_EFFORT,
+                      kObjectStatusInterface);
+         return false;
+      }
+   }
+   return true;
+}
+
 // A recovery future stays valid from launch until read() consumes its result,
 // so `valid()` alone answers "is a recovery outstanding"; this answers the
 // narrower "has it finished".
@@ -161,29 +187,9 @@ hardware_interface::CallbackReturn RobotiqGripperHardwareInterface::on_init(cons
       return CallbackReturn::ERROR;
    }
 
-   // There are two state interfaces: position and velocity.
-   if(joint.state_interfaces.size() != 2)
+   if(!declaresOnlySupportedStateInterfaces(joint))
    {
-      RCLCPP_FATAL(kLogger,
-                   "Joint '%s' has %zu state interface. 2 expected.",
-                   joint.name.c_str(),
-                   joint.state_interfaces.size());
       return CallbackReturn::ERROR;
-   }
-
-   for(int i = 0; i < 2; ++i)
-   {
-      if(!(joint.state_interfaces[i].name == hardware_interface::HW_IF_POSITION
-           || joint.state_interfaces[i].name == hardware_interface::HW_IF_VELOCITY))
-      {
-         RCLCPP_FATAL(kLogger,
-                      "Joint '%s' has %s state interface. Expected %s or %s.",
-                      joint.name.c_str(),
-                      joint.state_interfaces.at(i).name.c_str(),
-                      hardware_interface::HW_IF_POSITION,
-                      hardware_interface::HW_IF_VELOCITY);
-         return CallbackReturn::ERROR;
-      }
    }
 
    return CallbackReturn::SUCCESS;
@@ -258,6 +264,10 @@ std::vector<hardware_interface::StateInterface> RobotiqGripperHardwareInterface:
       hardware_interface::StateInterface(info_.joints[0].name, hardware_interface::HW_IF_POSITION, &gripper_position_));
    state_interfaces.emplace_back(
       hardware_interface::StateInterface(info_.joints[0].name, hardware_interface::HW_IF_VELOCITY, &gripper_velocity_));
+   state_interfaces.emplace_back(
+      hardware_interface::StateInterface(info_.joints[0].name, hardware_interface::HW_IF_EFFORT, &gripper_effort_));
+   state_interfaces.emplace_back(
+      hardware_interface::StateInterface(info_.joints[0].name, kObjectStatusInterface, &gripper_object_status_));
 
    return state_interfaces;
 }
@@ -418,6 +428,8 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::read(const rclc
    // The status block carries no velocity — the gripper reports position and
    // motor current only.
    gripper_velocity_ = 0.0;
+   gripper_effort_ = fractionOfFromRegister(status.current, parameters_.max_force);
+   gripper_object_status_ = static_cast<uint8_t>(status.gripperStatus.objectDetection());
 
    // A faulted link recovers by itself on the next successful exchange, so
    // this warns rather than errors; the position above is the last good

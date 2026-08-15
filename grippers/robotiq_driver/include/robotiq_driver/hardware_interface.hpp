@@ -58,6 +58,11 @@
 #include <rclcpp/rclcpp.hpp>
 
 namespace robotiq_driver {
+//! Name of the state interface carrying gOBJ. ros2_control defines HW_IF_
+//! constants for position, velocity and effort but has nothing for object
+//! detection, so the URDF and every consumer spell this one out.
+inline constexpr const char* kObjectStatusInterface = "object_status";
+
 //! ros2_control hardware interface for a Robotiq 2F gripper, driven through the
 //! gripper SDK.
 //! Member order carries an invariant: recovery_ is declared after gripper_ so
@@ -114,7 +119,8 @@ public:
    CallbackReturn on_error(const rclcpp_lifecycle::State& previous_state) override;
 
    /**
-    * This method exposes position and velocity of joints for reading.
+    * This method exposes position, velocity, effort and object status of joints
+    * for reading.
     */
    ROBOTIQ_DRIVER_PUBLIC
    std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
@@ -179,6 +185,18 @@ protected:
 
    double gripper_position_ = 0.0;
    double gripper_velocity_ = 0.0;
+
+   // gCU read back through the same full-scale force the rFR command uses, so
+   // the effort reported and the effort requested are on one scale. It is a
+   // motor-current proxy either way, not a measurement of the grip.
+   double gripper_effort_ = 0.0;
+
+   // gOBJ as it comes off the wire: 0 moving, 1 held while opening, 2 held
+   // while closing, 3 at the requested position. A double to match the other
+   // three interfaces: Jazzy can carry a uint8_t, but only through the
+   // description-driven StateInterface constructor, and Humble cannot at all.
+   double gripper_object_status_ = 0.0;
+
    double gripper_position_command_ = 0.0;
 
    // The last command write() sent. A register the arithmetic cannot produce

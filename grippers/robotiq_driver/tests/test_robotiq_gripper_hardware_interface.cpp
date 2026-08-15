@@ -92,6 +92,8 @@ std::string minimalRobotUrdf(const std::string& extra_hardware_params = "")
                 <param name="initial_value">0.7929</param>
               </state_interface>
               <state_interface name="velocity"/>
+              <state_interface name="effort"/>
+              <state_interface name="object_status"/>
             </joint>
             <gpio name="reactivate_gripper">
               <command_interface name="reactivate_gripper_cmd" />
@@ -149,6 +151,31 @@ TEST(TestRobotiqGripperHardwareInterface, ExportsExpectedCommandInterfaces)
                                       "robotiq_85_left_knuckle_joint/set_gripper_max_effort",
                                       "reactivate_gripper/reactivate_gripper_cmd",
                                       "reactivate_gripper/reactivate_gripper_response"}));
+}
+
+/**
+ * A grasping client reads object_status to tell a caught part from a missed one
+ * and effort to judge the grip, both by name. object_status in particular is not
+ * a ros2_control standard interface, so nothing but this test pins its spelling.
+ */
+TEST(TestRobotiqGripperHardwareInterface, ExportsExpectedStateInterfaces)
+{
+   const std::string urdf = minimalRobotUrdf();
+
+   rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
+
+#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
+   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
+#else
+   hardware_interface::ResourceManager rm(urdf);
+#endif
+
+   const auto keys = rm.state_interface_keys();
+   EXPECT_THAT(keys,
+               testing::IsSupersetOf({"robotiq_85_left_knuckle_joint/position",
+                                      "robotiq_85_left_knuckle_joint/velocity",
+                                      "robotiq_85_left_knuckle_joint/effort",
+                                      "robotiq_85_left_knuckle_joint/object_status"}));
 }
 
 /**

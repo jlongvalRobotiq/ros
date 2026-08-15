@@ -92,4 +92,11 @@ inline constexpr uint8_t kGripperRange = kGripperMaxPos - kGripperMinPos;
    }
    return static_cast<uint8_t>(std::min(value / maximum, 1.0) * 0xFF);
 }
+
+//! The inverse: a 0x00..0xFF register read back as the fraction of \p maximum
+//! it stands for.
+[[nodiscard]] inline double fractionOfFromRegister(uint8_t register_value, double maximum)
+{
+   return maximum * register_value / 0xFF;
+}
 } // namespace robotiq_driver

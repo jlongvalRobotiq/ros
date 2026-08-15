@@ -57,6 +57,13 @@
                     <param name="initial_value">${gripper_closed_position}</param>
                 </state_interface>
                 <state_interface name="velocity"/>
+                <!-- Fed from the status block the driver already exchanges:
+                     effort from gCU (a motor-current proxy, on the same full
+                     scale as the force command), object_status from gOBJ
+                     (0 moving, 1 held while opening, 2 held while closing,
+                     3 at the requested position). -->
+                <state_interface name="effort"/>
+                <state_interface name="object_status"/>
             </joint>
             <!-- When simulating we need to include the rest of the gripper joints -->
             <xacro:if value="${sim_isaac or sim_gazebo}">
