@@ -31,6 +31,7 @@
 
 #include <limits>
 #include <optional>
+#include <type_traits>
 
 #include <robotiq_driver/gripper_scaling.hpp>
 
@@ -134,11 +135,19 @@ TEST(GripperScaling, whenTheMaximumIsNearZero_theRegisterIsTheMaxAllowedValue)
    EXPECT_EQ(255, registerFromFractionOf(0.15, std::numeric_limits<double>::denorm_min()));
 }
 
-TEST(GripperScaling, ReadingAFractionBackSpansTheWholeScale)
+TEST(GripperScaling, MotorCurrentIsTenMilliampsPerCount)
 {
-   constexpr double kMaxForce = 235.0;
-   EXPECT_DOUBLE_EQ(0.0, fractionOfFromRegister(0, kMaxForce));
-   EXPECT_DOUBLE_EQ(kMaxForce, fractionOfFromRegister(255, kMaxForce));
-   EXPECT_DOUBLE_EQ(kMaxForce * 127 / 255, fractionOfFromRegister(127, kMaxForce));
+   EXPECT_DOUBLE_EQ(0.0, motorCurrentFromRegister(0));
+   EXPECT_DOUBLE_EQ(0.01, motorCurrentFromRegister(1));
+   EXPECT_DOUBLE_EQ(1.27, motorCurrentFromRegister(127));
+   EXPECT_DOUBLE_EQ(2.55, motorCurrentFromRegister(255));
+}
+
+TEST(GripperScaling, MotorCurrentTakesNoScaleFromTheDescription)
+{
+   // Scaling gCU by a description parameter would make one motor current read
+   // as two numbers on two robots.
+   static_assert(std::is_invocable_r_v<double, decltype(motorCurrentFromRegister), uint8_t>);
+   EXPECT_DOUBLE_EQ(1.0, motorCurrentFromRegister(100));
 }
 } // namespace robotiq_driver::test

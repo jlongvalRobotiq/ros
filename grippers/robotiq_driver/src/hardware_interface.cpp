@@ -89,17 +89,15 @@ const char* toString(Robotiq::ConnectionState state)
    return "Unknown";
 }
 
-// export_state_interfaces() exports position, velocity, effort and object status
-// whatever the description says, so this only checks that the description names
-// no fifth one the hardware cannot answer for. Declaring fewer is fine.
+// export_state_interfaces() exports all four whatever the description says, so
+// the names below are the whole contract: nothing here gates what appears.
 bool declaresOnlySupportedStateInterfaces(const hardware_interface::ComponentInfo& joint)
 {
    for(const hardware_interface::InterfaceInfo& state_interface : joint.state_interfaces)
    {
       if(!(state_interface.name == hardware_interface::HW_IF_POSITION
            || state_interface.name == hardware_interface::HW_IF_VELOCITY
-           || state_interface.name == hardware_interface::HW_IF_EFFORT
-           || state_interface.name == kObjectStatusInterface))
+           || state_interface.name == kMotorCurrentInterface || state_interface.name == kObjectStatusInterface))
       {
          RCLCPP_FATAL(kLogger,
                       "Joint '%s' has %s state interface. Expected %s, %s, %s or %s.",
@@ -107,7 +105,7 @@ bool declaresOnlySupportedStateInterfaces(const hardware_interface::ComponentInf
                       state_interface.name.c_str(),
                       hardware_interface::HW_IF_POSITION,
                       hardware_interface::HW_IF_VELOCITY,
-                      hardware_interface::HW_IF_EFFORT,
+                      kMotorCurrentInterface,
                       kObjectStatusInterface);
          return false;
       }
@@ -162,6 +160,8 @@ hardware_interface::CallbackReturn RobotiqGripperHardwareInterface::on_init(cons
 
    gripper_position_ = std::numeric_limits<double>::quiet_NaN();
    gripper_velocity_ = std::numeric_limits<double>::quiet_NaN();
+   gripper_motor_current_ = std::numeric_limits<double>::quiet_NaN();
+   gripper_object_status_ = std::numeric_limits<double>::quiet_NaN();
    gripper_position_command_ = std::numeric_limits<double>::quiet_NaN();
    reactivate_gripper_cmd_ = NO_NEW_CMD_;
 
@@ -265,7 +265,7 @@ std::vector<hardware_interface::StateInterface> RobotiqGripperHardwareInterface:
    state_interfaces.emplace_back(
       hardware_interface::StateInterface(info_.joints[0].name, hardware_interface::HW_IF_VELOCITY, &gripper_velocity_));
    state_interfaces.emplace_back(
-      hardware_interface::StateInterface(info_.joints[0].name, hardware_interface::HW_IF_EFFORT, &gripper_effort_));
+      hardware_interface::StateInterface(info_.joints[0].name, kMotorCurrentInterface, &gripper_motor_current_));
    state_interfaces.emplace_back(
       hardware_interface::StateInterface(info_.joints[0].name, kObjectStatusInterface, &gripper_object_status_));
 
@@ -375,6 +375,8 @@ hardware_interface::CallbackReturn RobotiqGripperHardwareInterface::on_activate(
    // any hold target derived from it, describe where the fingers actually are.
    gripper_position_ = jointPositionFromRegister(status.position, parameters_.closed_position);
    gripper_velocity_ = 0.0;
+   gripper_motor_current_ = motorCurrentFromRegister(status.current);
+   gripper_object_status_ = static_cast<double>(status.gripperStatus.objectDetection());
    gripper_position_command_ = gripper_position_;
 
    RCLCPP_INFO(kLogger, "Robotiq Gripper successfully activated!");
@@ -428,8 +430,8 @@ hardware_interface::return_type RobotiqGripperHardwareInterface::read(const rclc
    // The status block carries no velocity — the gripper reports position and
    // motor current only.
    gripper_velocity_ = 0.0;
-   gripper_effort_ = fractionOfFromRegister(status.current, parameters_.max_force);
-   gripper_object_status_ = static_cast<uint8_t>(status.gripperStatus.objectDetection());
+   gripper_motor_current_ = motorCurrentFromRegister(status.current);
+   gripper_object_status_ = static_cast<double>(status.gripperStatus.objectDetection());
 
    // A faulted link recovers by itself on the next successful exchange, so
    // this warns rather than errors; the position above is the last good
