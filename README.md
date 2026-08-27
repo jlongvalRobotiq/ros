@@ -264,6 +264,23 @@ ros2 action send_goal /robotiq_gripper_controller/gripper_cmd \
 
 `position` is the joint angle in radians (≈ `0.0` open → ~`0.8` closed on a 2F-85); on Jazzy/Lyrical `effort` and `velocity` are optional max limits, mapped to the controller's `set_gripper_max_effort` / `set_gripper_max_velocity` interfaces.
 
+### State interfaces
+
+`robotiq_driver` exports four state interfaces on the gripper joint, all read out of the same status block the SDK exchanges every cycle. Read them from `/dynamic_joint_states`, or with `ros2 control list_hardware_interfaces`.
+
+| Interface | Unit | Description |
+|---|---|---|
+| `position` | rad | Knuckle joint angle, from gPO (≈ `0.0` open → ~`0.8` closed on a 2F-85) |
+| `velocity` | rad/s | Always `0.0`. The status block carries no velocity, and the driver does not differentiate the position |
+| `motor_current` | A | gCU, the motor current the manual gives as 10 mA per count, so `0.0` to `2.55` |
+| `object_status` | — | gOBJ verbatim: `0` moving, `1` object held while opening, `2` object held while closing, `3` at the requested position |
+
+All four read `NaN` until the component is activated; activation seeds them from the gripper's first settled status read, and `read()` refreshes them every cycle after that. The sentinel matters most for `object_status`, where every value in range is meaningful — `0` is "moving", not "no reading" — so `NaN` is the only way to say the gripper has not answered yet. Test for it before comparing against `0`..`3`.
+
+`motor_current` is motor current, **not** grip force, and it is not convertible to one.
+
+`motor_current` and `object_status` are not `ros2_control` standard interface names (there are `HW_IF_` constants for position, velocity and effort, and nothing for either of these), so consumers spell them out. The descriptions declare them on the real-hardware branch only — `mock_components/GenericSystem`, Gazebo and Isaac never write them — so under `use_fake_hardware:=true` both are absent rather than wrong.
+
 ### Hardware parameters
 
 `robotiq_driver` reads these from the `<hardware>` block of the `ros2_control` description (`robotiq_description/urdf/2f_*.ros2_control.xacro`):
@@ -277,13 +294,13 @@ ros2 action send_goal /robotiq_gripper_controller/gripper_cmd \
 | `slave_address` | `0x09` | Modbus slave address; `0x09` as the manual prints it, a bare number as the decimal it looks like |
 | `connection_frequency` | `100` | Rate of the SDK's background exchange cycle, in Hz; `0` free-runs |
 | `activation_timeout` | `15` | Seconds allowed for activation and for fault recovery |
-| `gripper_max_speed` / `gripper_max_force` | `0.150` m/s / `235` N | Full scale used to turn the speed/effort command interfaces into register fractions; must be positive |
+| `gripper_max_speed` / `gripper_max_force` | `0.150` m/s / `235` N | Full scale used to turn the speed/effort command interfaces into rSP / rFR register fractions. Command-side only — nothing scales a state interface by them. Rejected unless finite and above zero |
 | `gripper_speed_multiplier` / `gripper_force_multiplier` | `1.0` | Initial fractions published on those interfaces |
 | `use_dummy` | `false` | Drive a fake gripper instead of hardware. Off for the usual falsey spellings — empty, `0`, `false`, `no`, `off`, in any case — on for anything else |
 
 A malformed value is reported and the default stands; only `gripper_closed_position` fails the transition — missing, malformed, zero, or non-finite. A speed or force command the driver cannot turn into a register leaves that register at its previous value.
 
-> `use_dummy` now selects the SDK's fake gripper: no port is opened, activation is instant, and the fingers report wherever they were last commanded. It keeps the real plugin loaded, so the gripper and activation controllers still bind. That is what distinguishes it from the `use_fake_hardware:=true` launch argument, which swaps the plugin out for `ros2_control`'s `mock_components/GenericSystem` — that exports neither `set_gripper_max_velocity` / `set_gripper_max_effort` nor the `reactivate_gripper` GPIO.
+> `use_dummy` selects the SDK's fake gripper: no port is opened, activation is instant, and the fingers report wherever they were last commanded. It keeps the real plugin loaded, so the gripper and activation controllers still bind. That is what distinguishes it from the `use_fake_hardware:=true` launch argument, which swaps the plugin out for `ros2_control`'s `mock_components/GenericSystem`.
 
 ### Activation, faults and recovery
 

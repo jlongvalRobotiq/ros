@@ -92,4 +92,11 @@ inline constexpr uint8_t kGripperRange = kGripperMaxPos - kGripperMinPos;
    }
    return static_cast<uint8_t>(std::min(value / maximum, 1.0) * 0xFF);
 }
+
+inline constexpr double kAmperesPerCurrentCount = 0.010;
+
+[[nodiscard]] inline constexpr double motorCurrentFromRegister(uint8_t register_value)
+{
+   return kAmperesPerCurrentCount * register_value;
+}
 } // namespace robotiq_driver

@@ -57,6 +57,10 @@
                     <param name="initial_value">${gripper_closed_position}</param>
                 </state_interface>
                 <state_interface name="velocity"/>
+                <xacro:unless value="${use_fake_hardware or sim_gazebo or sim_isaac}">
+                    <state_interface name="motor_current"/>
+                    <state_interface name="object_status"/>
+                </xacro:unless>
             </joint>
             <!-- When simulating we need to include the rest of the gripper joints -->
             <xacro:if value="${sim_isaac or sim_gazebo}">

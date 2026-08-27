@@ -36,6 +36,7 @@
 #include <limits>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <hardware_interface/resource_manager.hpp>
 #include <hardware_interface/types/lifecycle_state_names.hpp>
@@ -92,6 +93,8 @@ std::string minimalRobotUrdf(const std::string& extra_hardware_params = "")
                 <param name="initial_value">0.7929</param>
               </state_interface>
               <state_interface name="velocity"/>
+              <state_interface name="motor_current"/>
+              <state_interface name="object_status"/>
             </joint>
             <gpio name="reactivate_gripper">
               <command_interface name="reactivate_gripper_cmd" />
@@ -149,6 +152,60 @@ TEST(TestRobotiqGripperHardwareInterface, ExportsExpectedCommandInterfaces)
                                       "robotiq_85_left_knuckle_joint/set_gripper_max_effort",
                                       "reactivate_gripper/reactivate_gripper_cmd",
                                       "reactivate_gripper/reactivate_gripper_response"}));
+}
+
+/**
+ * Neither motor_current nor object_status is a ros2_control standard interface,
+ * so nothing but this test pins their spelling.
+ */
+TEST(TestRobotiqGripperHardwareInterface, ExportsExpectedStateInterfaces)
+{
+   const std::string urdf = minimalRobotUrdf();
+
+   rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
+
+#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
+   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
+#else
+   hardware_interface::ResourceManager rm(urdf);
+#endif
+
+   std::vector<std::string> joint_keys;
+   for(const std::string& key : rm.state_interface_keys())
+   {
+      if(key.rfind("robotiq_85_left_knuckle_joint/", 0) == 0)
+      {
+         joint_keys.push_back(key);
+      }
+   }
+
+   EXPECT_THAT(joint_keys,
+               testing::UnorderedElementsAre("robotiq_85_left_knuckle_joint/position",
+                                             "robotiq_85_left_knuckle_joint/velocity",
+                                             "robotiq_85_left_knuckle_joint/motor_current",
+                                             "robotiq_85_left_knuckle_joint/object_status"));
+}
+
+TEST(TestRobotiqGripperHardwareInterface, ExportsEveryStateInterfaceWhateverTheDescriptionDeclares)
+{
+   std::string urdf = minimalRobotUrdf();
+   const std::string declared = R"(              <state_interface name="motor_current"/>
+              <state_interface name="object_status"/>
+)";
+   ASSERT_NE(std::string::npos, urdf.find(declared));
+   urdf.erase(urdf.find(declared), declared.size());
+
+   rclcpp::Node node{"test_robotiq_gripper_hardware_interface"};
+
+#if HARDWARE_INTERFACE_VERSION_GTE(4, 13, 0)
+   hardware_interface::ResourceManager rm(urdf, node.get_node_clock_interface(), node.get_node_logging_interface());
+#else
+   hardware_interface::ResourceManager rm(urdf);
+#endif
+
+   EXPECT_THAT(rm.state_interface_keys(),
+               testing::IsSupersetOf(
+                  {"robotiq_85_left_knuckle_joint/motor_current", "robotiq_85_left_knuckle_joint/object_status"}));
 }
 
 /**

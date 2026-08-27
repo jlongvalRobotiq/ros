@@ -94,6 +94,17 @@ double asDouble(const std::string& text)
 {
    return std::stod(text);
 }
+
+//! For a scale the register arithmetic divides by.
+double asPositiveDouble(const std::string& text)
+{
+   const double value = std::stod(text);
+   if(!std::isfinite(value) || value <= 0.0)
+   {
+      throw std::invalid_argument("expected a finite value above zero");
+   }
+   return value;
+}
 } // namespace
 
 GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, const rclcpp::Logger& logger)
@@ -138,8 +149,8 @@ GripperParameters parseParameters(const hardware_interface::HardwareInfo& info, 
       throw std::invalid_argument("gripper_closed_position must be a non-zero, finite joint value");
    }
 
-   parameters.max_speed = parameterOr<double>(info, logger, kMaxSpeedParam, parameters.max_speed, asDouble);
-   parameters.max_force = parameterOr<double>(info, logger, kMaxForceParam, parameters.max_force, asDouble);
+   parameters.max_speed = parameterOr<double>(info, logger, kMaxSpeedParam, parameters.max_speed, asPositiveDouble);
+   parameters.max_force = parameterOr<double>(info, logger, kMaxForceParam, parameters.max_force, asPositiveDouble);
    parameters.speed_multiplier =
       parameterOr<double>(info, logger, kSpeedMultiplierParam, parameters.speed_multiplier, asDouble);
    parameters.force_multiplier =

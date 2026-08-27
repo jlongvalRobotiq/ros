@@ -153,6 +153,20 @@ TEST(HardwareParameters, AMalformedParameterFallsBackToItsDefault)
    EXPECT_DOUBLE_EQ(kMaxForceDefault, parameters.max_force);
 }
 
+TEST(HardwareParameters, AnUnusableScaleFallsBackToItsDefault)
+{
+   // Both are divisors of the register arithmetic, so a bad value is caught
+   // here rather than at each use.
+   for(const char* unusable : {"0", "-1", "-235", "nan", "-inf"})
+   {
+      const GripperParameters parameters =
+         parseParameters(info_with({{"gripper_max_force", unusable}, {"gripper_max_speed", unusable}}), logger());
+
+      EXPECT_DOUBLE_EQ(kMaxForceDefault, parameters.max_force) << "gripper_max_force '" << unusable << "'";
+      EXPECT_DOUBLE_EQ(kMaxSpeedDefault, parameters.max_speed) << "gripper_max_speed '" << unusable << "'";
+   }
+}
+
 TEST(HardwareParameters, AMissingClosedPositionIsFatal)
 {
    // Unlike every other parameter this one has no defensible default: a

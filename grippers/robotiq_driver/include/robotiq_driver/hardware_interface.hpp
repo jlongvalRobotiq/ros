@@ -58,6 +58,10 @@
 #include <rclcpp/rclcpp.hpp>
 
 namespace robotiq_driver {
+
+inline constexpr const char* kObjectStatusInterface = "object_status";
+inline constexpr const char* kMotorCurrentInterface = "motor_current";
+
 //! ros2_control hardware interface for a Robotiq 2F gripper, driven through the
 //! gripper SDK.
 //! Member order carries an invariant: recovery_ is declared after gripper_ so
@@ -114,7 +118,8 @@ public:
    CallbackReturn on_error(const rclcpp_lifecycle::State& previous_state) override;
 
    /**
-    * This method exposes position and velocity of joints for reading.
+    * This method exposes position, velocity, motor current and object status of
+    * joints for reading.
     */
    ROBOTIQ_DRIVER_PUBLIC
    std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
@@ -179,6 +184,15 @@ protected:
 
    double gripper_position_ = 0.0;
    double gripper_velocity_ = 0.0;
+
+   // gCU in amperes, and gOBJ verbatim. Doubles to match the other
+   // interfaces: Jazzy can carry a uint8_t, but only through the
+   // description-driven StateInterface constructor, and Humble cannot at all.
+   //
+   // NaN before the first reading, because every value in range is a real one.
+   double gripper_motor_current_ = std::numeric_limits<double>::quiet_NaN();
+   double gripper_object_status_ = std::numeric_limits<double>::quiet_NaN();
+
    double gripper_position_command_ = 0.0;
 
    // The last command write() sent. A register the arithmetic cannot produce

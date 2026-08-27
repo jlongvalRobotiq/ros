@@ -37,6 +37,8 @@ silent until a controller fails to activate at runtime:
 * Mock hardware exposes only what the URDF declares, so those two interfaces have
   to be declared there or parallel_gripper_action_controller cannot claim them and
   never activates under use_fake_hardware:=true.
+* motor_current and object_status are the reverse case: only the real driver
+  writes them.
 """
 
 import shutil
@@ -62,6 +64,8 @@ REAL_PLUGIN = "robotiq_driver/RobotiqGripperHardwareInterface"
 
 # Exported by the driver at runtime; needed from the URDF under mock hardware.
 EXTRA_MOCK_COMMAND_INTERFACES = {"set_gripper_max_velocity", "set_gripper_max_effort"}
+
+HARDWARE_ONLY_STATE_INTERFACES = {"motor_current", "object_status"}
 
 requires_xacro = pytest.mark.skipif(
     shutil.which("xacro") is None, reason="xacro not on PATH"
@@ -93,6 +97,12 @@ def command_interfaces_of(ros2_control, joint_name):
     joint = ros2_control.find(f"joint[@name='{joint_name}']")
     assert joint is not None, f"joint {joint_name} missing from <ros2_control>"
     return {ci.get("name") for ci in joint.findall("command_interface")}
+
+
+def state_interfaces_of(ros2_control, joint_name):
+    joint = ros2_control.find(f"joint[@name='{joint_name}']")
+    assert joint is not None, f"joint {joint_name} missing from <ros2_control>"
+    return {si.get("name") for si in joint.findall("state_interface")}
 
 
 def joints_of(ros2_control):
@@ -152,3 +162,14 @@ def test_gripper_controller_config_interfaces_exist_under_mock():
     assert (
         claimed <= available
     ), f"controller claims {claimed - available}, which the mock URDF does not declare"
+
+
+@requires_xacro
+@pytest.mark.parametrize("model,joint", MODELS.items())
+def test_only_real_hardware_declares_the_status_block_interfaces(model, joint):
+    real = state_interfaces_of(expand(model, use_fake_hardware=False), joint)
+    mock = state_interfaces_of(expand(model, use_fake_hardware=True), joint)
+
+    assert HARDWARE_ONLY_STATE_INTERFACES <= real
+    assert HARDWARE_ONLY_STATE_INTERFACES.isdisjoint(mock)
+    assert real - HARDWARE_ONLY_STATE_INTERFACES == mock == {"position", "velocity"}
