@@ -49,13 +49,10 @@ jobs:
       # ros-base is minimal: it lacks git (needed by actions/checkout) and the
       # colcon coverage plugins that action-ros-ci invokes by default
       # (colcon lcov-result / coveragepy-result). Install them up front.
-      # libserialport-dev: the serial backend of both SDKs — no rosdep rule
-      # exists for the bare `libserialport` key, so install it directly and
-      # skip the key.
       - name: Install tooling missing from ros-base
         run: |
           apt-get update
-          apt-get install -y git lcov libserialport-dev \
+          apt-get install -y git lcov \
             python3-colcon-lcov-result python3-colcon-coveragepy-result
       - uses: actions/checkout@v5
         with:
@@ -74,5 +71,3 @@ jobs:
             robotiq_description
             robotiq_hardware_tests
           target-ros2-distro: ${{ matrix.ros_distro }}
-          # libserialport is installed above; skip its rosdep key.
-          rosdep-skip-keys: libserialport

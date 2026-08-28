@@ -18,14 +18,13 @@ ARG ROS_DISTRO
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 
-# Build tooling + sensor build deps (libserialport, via pkg-config) + gripper
+# Build tooling + sensor build deps + gripper
 # build deps (ros2_control stack). ros2-controllers brings the distro's gripper
 # action controller: gripper_controllers on Humble, parallel_gripper_controller
 # on Jazzy and newer.
 RUN apt-get update && apt-get install -y \
         pkg-config \
         python3-colcon-common-extensions python3-rosdep \
-        libserialport-dev \
         ros-${ROS_DISTRO}-ros2-control \
         ros-${ROS_DISTRO}-ros2-controllers \
         ros-${ROS_DISTRO}-controller-manager \
@@ -56,10 +55,9 @@ RUN touch /ws/src/extern/grippers/sdk_cpp/COLCON_IGNORE
 # BUILD_TESTING=OFF: this is a deployment image; tests are not run here.
 RUN apt-get update \
     && rosdep install --from-paths /ws/src --ignore-src -y --rosdistro ${ROS_DISTRO} \
-         --skip-keys "libserialport" \
-         --dependency-types buildtool --dependency-types build \
-         --dependency-types build_export --dependency-types buildtool_export \
-         --dependency-types exec \
+        --dependency-types buildtool --dependency-types build \
+        --dependency-types build_export --dependency-types buildtool_export \
+        --dependency-types exec \
     && rm -rf /var/lib/apt/lists/* \
     && bash -lc "source /opt/ros/${ROS_DISTRO}/setup.bash \
         && cd /ws && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF"

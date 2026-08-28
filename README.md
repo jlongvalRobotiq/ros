@@ -167,8 +167,7 @@ rm -rf ros2_robotiq_gripper        # remove the PickNik clone to prevent duplica
 rm -rf serial                      # no longer used: the gripper SDK talks to the port itself
 git clone --recurse-submodules https://github.com/robotiq/ros.git
 cd ~/ws
-sudo apt install libserialport-dev # the gripper SDK's serial backend; no rosdep key exists for it
-rosdep install --from-paths src --ignore-src -y --skip-keys libserialport
+rosdep install --from-paths src --ignore-src -y
 rm -rf build install               # clear artifacts built from the PickNik sources
 colcon build
 ```

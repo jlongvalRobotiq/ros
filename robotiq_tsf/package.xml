@@ -30,9 +30,11 @@
 
   <!-- Quaternion algebra in the AHRS/algorithms library (header-only). -->
   <depend>eigen</depend>
+
   <!-- SDK-backed poller (poll_data_sdk_node) links the tactile_sensors SDK,
-       which uses libserialport. Installed explicitly in docker/Dockerfile. -->
-  <depend>libserialport</depend>
+       which uses libserialport. rosdep has no runtime-only key, so the -dev
+       package is the exec dependency too. -->
+  <depend>libserialport-dev</depend>
 
   <!-- tactile_viz_node (Python RViz visualization) + its launch/rviz. -->
   <exec_depend>rclpy</exec_depend>
