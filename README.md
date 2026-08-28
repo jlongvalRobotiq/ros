@@ -5,7 +5,7 @@ ROS packages for Robotiq grippers and sensors.
 | Package | Description | ROS Version |
 |---|---|---|
 | [robotiq_tsf](robotiq_tsf/) | TSF-85 tactile sensor driver | ROS 2 Humble / Jazzy / Lyrical ([main](https://github.com/robotiq/ros/tree/main)) / ROS 1 Noetic ([noetic](https://github.com/robotiq/ros/tree/noetic)) |
-| [grippers](grippers/) | ROS 2 `ros2_control` driver for Robotiq grippers (2F-85/140, Hand-E), on the [Robotiq C++ SDK](https://github.com/Robotiq/grippers) | ROS 2 Humble / Jazzy / Lyrical |
+| [grippers](grippers/) | ROS 2 `ros2_control` driver for Robotiq 2F adaptive grippers (2F-85, 2F-140), on the [Robotiq C++ SDK](https://github.com/Robotiq/grippers) | ROS 2 Humble / Jazzy / Lyrical |
 
 ## Supported ROS 2 distros
 
@@ -122,7 +122,15 @@ In the combined launch the pad frames are TF-mounted on the gripper fingertip li
 
 ## Grippers
 
-ROS 2 `ros2_control` driver for Robotiq grippers (2F-85 / 2F-140, Hand-E), under [`grippers/`](grippers/).
+ROS 2 `ros2_control` driver for Robotiq 2F adaptive grippers, under [`grippers/`](grippers/).
+
+Descriptions ship for the **2F-85** and the **2F-140**; `robotiq_control.launch.py` defaults to the
+2F-85, so pass `description_file` for a 2F-140. Hardware validation to date is on a 2F-85 — the
+2F-140 description ships untested against hardware.
+
+The driver itself is model-agnostic: it needs a serial link and the `gripper_closed_position` of
+whatever is attached. A **Hand-E** therefore works once you supply a URDF for it, but no Hand-E
+description ships here yet.
 
 The driver runs on the [Robotiq C++ grippers SDK](https://github.com/Robotiq/grippers), which arrives as
 the `extern/grippers` submodule — so clone with `--recurse-submodules`. The SDK owns the serial link
