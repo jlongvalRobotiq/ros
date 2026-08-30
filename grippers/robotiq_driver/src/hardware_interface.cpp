@@ -30,9 +30,12 @@
 #include <chrono>
 #include <cmath>
 #include <future>
+#include <iomanip>
 #include <limits>
 #include <memory>
 #include <optional>
+#include <sstream>
+#include <string>
 #include <vector>
 
 #include <robotiq_driver/gripper_scaling.hpp>
@@ -111,6 +114,18 @@ bool declaresOnlySupportedStateInterfaces(const hardware_interface::ComponentInf
       }
    }
    return true;
+}
+
+// Shared by the two messages that report whether the link came up. A failed
+// connect is almost always one of these three being wrong, and the SDK logs
+// only the port and baud rate, at debug level.
+std::string describeLink(const Robotiq::ConnectionConfig& connection)
+{
+   std::ostringstream text;
+   text << connection.serial.port << " at " << connection.serial.baudrate << " bps (slave address 0x" << std::hex
+        << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<unsigned>(connection.modbusSlaveAddress)
+        << ")";
+   return text.str();
 }
 
 // A recovery future stays valid from launch until read() consumes its result,
@@ -211,15 +226,16 @@ rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn Roboti
    }
    catch(const std::exception& e)
    {
-      RCLCPP_ERROR(kLogger, "Cannot connect to the Robotiq gripper: %s", e.what());
+      RCLCPP_ERROR(kLogger,
+                   "Cannot connect to the Robotiq gripper on %s: %s",
+                   describeLink(parameters_.connection).c_str(),
+                   e.what());
       return CallbackReturn::ERROR;
    }
 
    RCLCPP_INFO(kLogger,
-               "Connected to the Robotiq gripper on %s at %u bps (slave address 0x%02X), exchanging at %.1f Hz.",
-               parameters_.connection.serial.port.c_str(),
-               parameters_.connection.serial.baudrate,
-               parameters_.connection.modbusSlaveAddress,
+               "Connected to the Robotiq gripper on %s, exchanging at %.1f Hz.",
+               describeLink(parameters_.connection).c_str(),
                parameters_.connection.connectionFrequency);
    return CallbackReturn::SUCCESS;
 }
