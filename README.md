@@ -30,7 +30,7 @@ matching controller config automatically from `$ROS_DISTRO`, and everything else
 `/robotiq_gripper_controller/gripper_cmd` namespace, the xacro macro arguments)
 is identical across all three. On Humble that makes this repo a drop-in
 replacement for PickNik's `humble` branch — see
-[Migrating from PickNik's ros2_robotiq_gripper](#migrating-from-picknik-ros2_robotiq_gripper).
+[Migrating from PickNik's ros2_robotiq_gripper](#migrating-from-pickniks-ros2_robotiq_gripper).
 
 ## Versioning
 
@@ -54,6 +54,14 @@ so adding or removing a package fails until it is regenerated.
 
 Tags predating this scheme were per-stack: `V1.0.0` released the TSF packages,
 and `0.0.1` is PickNik's original gripper release.
+
+## Contributing
+
+Bug reports, fixes and features are welcome. Robotiq maintains these packages;
+contributions come in as pull requests from a fork. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, the formatting and
+test requirements, and the distro and PickNik compatibility constraints that
+shape review.
 
 ## Legacy
 
@@ -337,7 +345,7 @@ Mock and hardware publish the same `/joint_states` contract on every distro: the
 
 ## Testing
 
-Unit tests live in each package's `test/` directory and run without hardware. Build and run all tests from the repository root:
+Unit tests live in each package's `test/` (or `tests/`) directory and run without hardware. Build and run all tests from the repository root:
 
 ```bash
 source /opt/ros/jazzy/setup.bash    # or humble / lyrical
