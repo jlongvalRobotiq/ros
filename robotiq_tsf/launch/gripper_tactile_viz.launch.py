@@ -73,12 +73,18 @@ def generate_launch_description():
     default_rviz = os.path.join(pkg_tsf, "rviz", "gripper_tactile.rviz")
 
     com_port = LaunchConfiguration("com_port")
+    baudrate = LaunchConfiguration("baudrate")
     use_fake_hardware = LaunchConfiguration("use_fake_hardware")
     rviz_config = LaunchConfiguration("rviz_config")
 
     args = [
         DeclareLaunchArgument(
             "com_port", default_value="/dev/ttyUSB0", description="Gripper serial port."
+        ),
+        DeclareLaunchArgument(
+            "baudrate",
+            default_value="115200",
+            description="Modbus RTU baudrate the gripper is configured for.",
         ),
         DeclareLaunchArgument(
             "poller",
@@ -141,6 +147,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             "com_port": com_port,
+            "baudrate": baudrate,
             "use_fake_hardware": use_fake_hardware,
             "launch_rviz": "false",
         }.items(),

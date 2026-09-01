@@ -85,6 +85,26 @@ TEST(HardwareParameters, ReadsTheConnectionParameters)
    EXPECT_DOUBLE_EQ(50.0, parameters.connection.connectionFrequency);
 }
 
+TEST(HardwareParameters, ABaudrateTheSerialPortCannotUseKeepsTheDefault)
+{
+   // Now that a launch argument feeds this, the ways someone writes the rate
+   // wrong matter: std::stoul alone reads "115200bps" as 115200 and "1.152e5"
+   // as 1, and libserialport takes 0 or a wrapped negative without complaint,
+   // leaving a port that opens and then answers nothing.
+   for(const char* unusable : {"115200bps", "1.152e5", "115 200", "0", "-1", "2000000", ""})
+   {
+      EXPECT_EQ(kBaudrateDefault,
+                parseParameters(info_with({{"baudrate", unusable}}), logger()).connection.serial.baudrate)
+         << "baudrate '" << unusable << "'";
+   }
+}
+
+TEST(HardwareParameters, ASlaveAddressWithTrailingCharactersKeepsTheDefault)
+{
+   EXPECT_EQ(kSlaveAddressDefault,
+             parseParameters(info_with({{"slave_address", "0x9 (default)"}}), logger()).connection.modbusSlaveAddress);
+}
+
 TEST(HardwareParameters, AClosedPositionItCannotDivideByIsFatal)
 {
    // on_init turns this into CallbackReturn::ERROR. PickNik accepted it and

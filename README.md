@@ -234,7 +234,7 @@ ros2 action send_goal /robotiq_gripper_controller/gripper_cmd \
 
 #### What you gain
 
-- `use_fake_hardware` launch arg on `robotiq_control.launch.py` (hardware-free bringup, previously hardcoded off)
+- `use_fake_hardware` and `baudrate` launch args on `robotiq_control.launch.py` (hardware-free bringup, previously hardcoded off; a custom baudrate, previously an edit to the xacro)
 - Actionable error messages when the gripper does not respond (24 V power, RS-485 wiring, `slave_address` / `baudrate` hints)
 - A unified Docker image with device mapping ([Docker](#docker))
 - Active maintenance — PickNik's in-tree README and CI were removed; docs live in this README, and issues go to [robotiq/ros/issues](https://github.com/robotiq/ros/issues)
@@ -252,6 +252,7 @@ Bring up a gripper:
 ros2 launch robotiq_description robotiq_control.launch.py                    # real hw, com_port:=/dev/ttyUSB0
 ros2 launch robotiq_description robotiq_control.launch.py use_fake_hardware:=true   # ros2_control mock
 ros2 launch robotiq_description robotiq_control.launch.py launch_rviz:=true         # + RViz visualization
+ros2 launch robotiq_description robotiq_control.launch.py baudrate:=<rate>
 ```
 
 This activates `joint_state_broadcaster`, `robotiq_gripper_controller`, and `robotiq_activation_controller`.
@@ -304,7 +305,7 @@ All four read `NaN` until the component is activated; activation seeds them from
 |---|---|---|
 | `gripper_closed_position` | *required* | Joint angle in radians at a fully closed gripper — the scale of the whole position mapping |
 | `COM_port` | `/dev/ttyUSB0` | Serial port |
-| `baudrate` | `115200` | Must match the gripper's persisted setting |
+| `baudrate` | `115200` | Must match the gripper's persisted setting, which is why it is also a launch argument, `baudrate:=<rate>`. Rejected outside 1..1000000. Most units stay at 115200; the gripper's own rate is changed in the Robotiq User Interface (*Modbus RTU Parameters*), not from here, and the gripper must be rebooted afterwards |
 | `timeout` | `0.5` | Per-transaction serial timeout, in seconds |
 | `slave_address` | `0x09` | Modbus slave address; `0x09` as the manual prints it, a bare number as the decimal it looks like |
 | `connection_frequency` | `100` | Rate of the SDK's background exchange cycle, in Hz; `0` free-runs |
