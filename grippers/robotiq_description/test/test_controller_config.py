@@ -185,6 +185,69 @@ def test_launch_selects_the_config_for_the_distro(distro, expected):
     assert selected == expected.name
     assert (CONFIG_DIR / selected).is_file()
 
+    simulated = launch_module.controllers_file_for_distro(distro, simulated=True)
+    assert simulated == SIM_OF[expected].name
+    assert (CONFIG_DIR / simulated).is_file()
+
+
+requires_launch = pytest.mark.skipif(
+    importlib.util.find_spec("launch_ros") is None, reason="launch_ros not importable"
+)
+
+
+def spawned_controllers(distro, monkeypatch, **launch_arguments):
+    from launch import LaunchContext
+    from launch.utilities import perform_substitutions
+    from launch_ros.actions import Node
+
+    if distro is None:
+        monkeypatch.delenv("ROS_DISTRO", raising=False)
+    else:
+        monkeypatch.setenv("ROS_DISTRO", distro)
+    context = LaunchContext()
+    context.launch_configurations.update(
+        {"sim_isaac": "false", "sim_gazebo": "false", **launch_arguments}
+    )
+
+    spawned = {}
+    for action in load_launch_module().generate_launch_description().entities:
+        if not isinstance(action, Node) or action.node_executable != "spawner":
+            continue
+        if action.condition is not None and not action.condition.evaluate(context):
+            continue
+        cmd = [perform_substitutions(context, part) for part in action.cmd]
+        spawned[cmd[1]] = Path(cmd[cmd.index("--param-file") + 1]).name
+    return spawned
+
+
+@requires_launch
+@pytest.mark.parametrize(
+    "distro,hardware_config,sim_config",
+    [
+        ("humble", HUMBLE_CONFIG, HUMBLE_SIM_CONFIG),
+        ("jazzy", JAZZY_CONFIG, JAZZY_SIM_CONFIG),
+        (None, JAZZY_CONFIG, JAZZY_SIM_CONFIG),
+    ],
+)
+@pytest.mark.parametrize("sim_argument", ["sim_isaac", "sim_gazebo"])
+def test_launch_spawns_per_plugin(
+    distro, hardware_config, sim_config, sim_argument, monkeypatch
+):
+    # Every spawner must be handed the same config the controller_manager loaded,
+    # and the activation controller only exists where its GPIO does.
+    hardware = spawned_controllers(distro, monkeypatch)
+    assert hardware == {
+        "joint_state_broadcaster": hardware_config.name,
+        "robotiq_gripper_controller": hardware_config.name,
+        "robotiq_activation_controller": hardware_config.name,
+    }
+
+    simulated = spawned_controllers(distro, monkeypatch, **{sim_argument: "true"})
+    assert simulated == {
+        "joint_state_broadcaster": sim_config.name,
+        "robotiq_gripper_controller": sim_config.name,
+    }
+
 
 @pytest.mark.parametrize("config", SIM_CONFIGS)
 def test_sim_configs_claim_no_driver_only_command_interfaces(config):
